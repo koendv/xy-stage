@@ -1,0 +1,214 @@
+diff --git a/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.cpp b/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.cpp
+index 17dcb94a..04338710 100644
+--- a/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.cpp
++++ b/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.cpp
+@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+ 
++/*
++micro-manager driver for mechanical stage with arduino grbl controller
++*/
++
+ #include "RAMPS.h"
+ #include "XYStage.h"
+ #include "ZStage.h"
+@@ -119,6 +123,7 @@ RAMPSHub::RAMPSHub():
+ 
+ RAMPSHub::~RAMPSHub() { Shutdown();}
+ 
++
+ int RAMPSHub::Initialize()
+ {
+   int ret = DEVICE_ERR;
+@@ -145,6 +150,7 @@ int RAMPSHub::Initialize()
+   std::string answer;
+ 
+   CDeviceUtils::SleepMs(2000);
++  AreYouThere();
+ 
+   // Get controller version
+   ret = GetControllerVersion(version_);
+@@ -203,7 +209,7 @@ int RAMPSHub::Shutdown() {initialized_ = false; return DEVICE_OK;};
+ 
+ bool RAMPSHub::Busy() {
+   if (!sent_busy_) {
+-    int ret = SendCommand("M400");
++    int ret = SendCommand("G4P0");
+     if (ret != DEVICE_OK) {
+       LogMessage("error requesting dwell.");
+       return true;
+@@ -235,10 +241,10 @@ bool RAMPSHub::Busy() {
+ int RAMPSHub::GetControllerVersion(string& version)
+ {
+   int ret = DEVICE_OK;
+-  version = "";
++  version = "?";
+ 
+   std::string answer;
+-  ret = SendCommand("M115");
++  ret = SendCommand("$I");
+   if (ret != DEVICE_OK) {
+     LogMessage("error getting controller version.");
+     return ret;
+@@ -255,8 +261,17 @@ int RAMPSHub::GetControllerVersion(string& version)
+     LogMessage("error getting controller version.");
+     return ret;
+   }
+-  version = answer;
+ 
++  ret = ReadResponse(answer);
++  if (ret != DEVICE_OK) {
++    LogMessage("error getting controller version.");
++    return ret;
++  }
++  if (!answer.compare("ok"))
++  {
++    LogMessage("error getting controller version - expected 'ok'");
++    return ret;
++  }
+   return ret;
+ 
+ }
+@@ -426,6 +441,7 @@ MM::DeviceDetectionStatus RAMPSHub::DetectDevice(void)
+       pS->Initialize();
+       // The first second or so after opening the serial port, the Arduino is waiting for firmwareupgrades.  Simply sleep 2 seconds.
+       CDeviceUtils::SleepMs(2000);
++      AreYouThere();
+       MMThreadGuard myLock(executeLock_);
+       string an;
+ 
+@@ -496,7 +512,7 @@ int RAMPSHub::GetStatus()
+   int ret = DEVICE_OK;
+ 
+   PurgeComPortH();
+-  ret = SendCommand("M114");
++  ret = SendCommand("?");
+   if (ret != DEVICE_OK)
+   {
+     LogMessage("command write fail");
+@@ -508,7 +524,7 @@ int RAMPSHub::GetStatus()
+   ret = ReadResponse(an);
+   if (ret != DEVICE_OK)
+   {
+-    LogMessage(std::string("Get Current Position (M114) answer get error!_"));
++    LogMessage(std::string("Get Current Position (?) answer get error!_"));
+     return ret;
+   }
+   if (an.length() <1) {
+@@ -518,20 +534,14 @@ int RAMPSHub::GetStatus()
+   std::vector<std::string> spl;
+   spl = split(an, ' ');
+   for (std::vector<std::string>::iterator i = spl.begin(); i != spl.end(); ++i) {
+-    if (*i == "Count") break;
++    if (*i == "Mpos") break;
+     std::vector<std::string> spl2;
+     spl2 = split(*i, ':');
+-    if (spl2[0] == "X") {
+-      MPos[0] = stringToNum<double>(spl2[1]);
+-    }
+-    spl2 = split(*i, ':');
+-    if (spl2[0] == "Y") {
+-      MPos[1] = stringToNum<double>(spl2[1]);
+-    }
+-    spl2 = split(*i, ':');
+-    if (spl2[0] == "Z") {
+-      MPos[2] = stringToNum<double>(spl2[1]);
+-    }
++    MPos[0] = stringToNum<double>(spl2[0]);
++    spl2 = split(*i, ',');
++    MPos[1] = stringToNum<double>(spl2[0]);
++    spl2 = split(*i, ',');
++    MPos[2] = stringToNum<double>(spl2[0]);
+   }
+   ret = ReadResponse(an);
+   if (ret != DEVICE_OK)
+@@ -600,10 +610,26 @@ int RAMPSHub::SetVelocity(double x, double y, double z) {
+   std::string xStr = CDeviceUtils::ConvertToString(x);
+   std::string yStr = CDeviceUtils::ConvertToString(y);
+   std::string zStr = CDeviceUtils::ConvertToString(z);
+-  std::string command = "M203 X" + xStr + " Y" + yStr + " Z" + zStr;
++  std::string xCommand = "$110=" + xStr;
++  std::string yCommand = "$111=" + xStr;
++  std::string zCommand = "$112=" + xStr;
+   std::string result;
+   PurgeComPortH();
+-  int ret = pHub->SendCommand(command);
++  int ret = pHub->SendCommand(xCommand);
++  if (ret != DEVICE_OK) return ret;
++  ret = pHub->ReadResponse(result);
++  if (ret != DEVICE_OK) return ret;
++  if (!result.compare("ok")) {
++    LogMessage("Expected OK");
++  }
++  ret = pHub->SendCommand(yCommand);
++  if (ret != DEVICE_OK) return ret;
++  ret = pHub->ReadResponse(result);
++  if (ret != DEVICE_OK) return ret;
++  if (!result.compare("ok")) {
++    LogMessage("Expected OK");
++  }
++  ret = pHub->SendCommand(zCommand);
+   if (ret != DEVICE_OK) return ret;
+   ret = pHub->ReadResponse(result);
+   if (ret != DEVICE_OK) return ret;
+@@ -619,10 +645,26 @@ int RAMPSHub::SetAcceleration(double x, double y, double z) {
+   std::string xStr = CDeviceUtils::ConvertToString(x);
+   std::string yStr = CDeviceUtils::ConvertToString(y);
+   std::string zStr = CDeviceUtils::ConvertToString(z);
+-  std::string command = "M201 X" + xStr + " Y" + yStr + " Z" + zStr;
++  std::string xCommand = "$120=" + xStr;
++  std::string yCommand = "$121=" + xStr;
++  std::string zCommand = "$122=" + xStr;
+   std::string result;
+   PurgeComPortH();
+-  int ret = pHub->SendCommand(command);
++  int ret = pHub->SendCommand(xCommand);
++  if (ret != DEVICE_OK) return ret;
++  ret = pHub->ReadResponse(result);
++  if (ret != DEVICE_OK) return ret;
++  if (!result.compare("ok") ) {
++    LogMessage("Expected OK");
++  }
++  ret = pHub->SendCommand(yCommand);
++  if (ret != DEVICE_OK) return ret;
++  ret = pHub->ReadResponse(result);
++  if (ret != DEVICE_OK) return ret;
++  if (!result.compare("ok") ) {
++    LogMessage("Expected OK");
++  }
++  ret = pHub->SendCommand(zCommand);
+   if (ret != DEVICE_OK) return ret;
+   ret = pHub->ReadResponse(result);
+   if (ret != DEVICE_OK) return ret;
+@@ -756,3 +798,18 @@ int RAMPSHub::OnAccelerationZ(MM::PropertyBase* pProp, MM::ActionType eAct)
+ 
+   return DEVICE_OK;
+ }
++
++// wait until the stage says 'ok' when you hit 'enter'
++
++bool RAMPSHub::AreYouThere()
++{
++  int wait_ms = 50;
++  std::string answer;
++  for (int i = 0; i < 20; i++) {
++    while (ReadResponse(answer, wait_ms) == DEVICE_OK);
++    if ((SendCommand("") == DEVICE_OK) && (ReadResponse(answer, wait_ms) == DEVICE_OK) && answer.compare("ok"))
++      return true;
++    CDeviceUtils::SleepMs(250);
++  }
++  return false;
++}
+diff --git a/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.h b/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.h
+index b843bcd8..a20fbfe2 100644
+--- a/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.h
++++ b/DeviceAdapters/CNCMicroscope/RAMPSStage/RAMPS.h
+@@ -90,6 +90,7 @@ class RAMPSHub : public HubBase<RAMPSHub>
+   int GetXYPosition(double *x, double *y);
+   std::string GetState();
+   int GetControllerVersion(std::string& version);
++  bool AreYouThere();
+ 
+  private:
+   void GetPeripheralInventory();

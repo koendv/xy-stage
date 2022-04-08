@@ -1,0 +1,477 @@
+diff --git a/Makefile b/Makefile
+index 9e20a43..836c8ca 100644
+--- a/Makefile
++++ b/Makefile
+@@ -30,7 +30,8 @@
+ 
+ DEVICE     ?= atmega328p
+ CLOCK      = 16000000
+-PROGRAMMER ?= -c avrisp2 -P usb
++# PROGRAMMER ?= -c avrisp2 -P usb
++PROGRAMMER ?= -c arduino -P /dev/ttyUSB0 -b 57600 -D -v
+ SOURCE    = main.c motion_control.c gcode.c spindle_control.c coolant_control.c serial.c \
+              protocol.c stepper.c eeprom.c settings.c planner.c nuts_bolts.c limits.c jog.c\
+              print.c probe.c report.c system.c
+diff --git a/grbl/config.h b/grbl/config.h
+index f48d958..78c027c 100644
+--- a/grbl/config.h
++++ b/grbl/config.h
+@@ -102,15 +102,15 @@
+ // on separate pin, but homed in one cycle. Also, it should be noted that the function of hard limits
+ // will not be affected by pin sharing.
+ // NOTE: Defaults are set for a traditional 3-axis CNC machine. Z-axis first to clear, followed by X & Y.
+-#define HOMING_CYCLE_0 (1<<Z_AXIS)                // REQUIRED: First move Z to clear workspace.
+-#define HOMING_CYCLE_1 ((1<<X_AXIS)|(1<<Y_AXIS))  // OPTIONAL: Then move X,Y at the same time.
++// #define HOMING_CYCLE_0 (1<<Z_AXIS)                // REQUIRED: First move Z to clear workspace.
++// #define HOMING_CYCLE_1 ((1<<X_AXIS)|(1<<Y_AXIS))  // OPTIONAL: Then move X,Y at the same time.
+ // #define HOMING_CYCLE_2                         // OPTIONAL: Uncomment and add axes mask to enable
+ 
+ // NOTE: The following are two examples to setup homing for 2-axis machines.
+ // #define HOMING_CYCLE_0 ((1<<X_AXIS)|(1<<Y_AXIS))  // NOT COMPATIBLE WITH COREXY: Homes both X-Y in one cycle. 
+ 
+-// #define HOMING_CYCLE_0 (1<<X_AXIS)  // COREXY COMPATIBLE: First home X
+-// #define HOMING_CYCLE_1 (1<<Y_AXIS)  // COREXY COMPATIBLE: Then home Y
++#define HOMING_CYCLE_0 (1<<X_AXIS)  // COREXY COMPATIBLE: First home X
++#define HOMING_CYCLE_1 (1<<Y_AXIS)  // COREXY COMPATIBLE: Then home Y
+ 
+ // Number of homing cycles performed after when the machine initially jogs to limit switches.
+ // This help in preventing overshoot and should improve repeatability. This value should be one or
+@@ -323,7 +323,7 @@
+ // normal-open switch and vice versa.
+ // NOTE: All pins associated with the feature are disabled, i.e. XYZ limit pins, not individual axes.
+ // WARNING: When the pull-ups are disabled, this requires additional wiring with pull-down resistors!
+-//#define DISABLE_LIMIT_PIN_PULL_UP
++#define DISABLE_LIMIT_PIN_PULL_UP
+ //#define DISABLE_PROBE_PIN_PULL_UP
+ //#define DISABLE_CONTROL_PIN_PULL_UP
+ 
+diff --git a/grbl/cpu_map.h b/grbl/cpu_map.h
+index 9f43a3f..ed0a3a8 100644
+--- a/grbl/cpu_map.h
++++ b/grbl/cpu_map.h
+@@ -42,8 +42,8 @@
+   #define STEP_MASK       ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
+ 
+   // Define step direction output pins. NOTE: All direction pins must be on the same port.
+-  #define DIRECTION_DDR     DDRD
+-  #define DIRECTION_PORT    PORTD
++  #define DIRECTION_DDR     DDRC
++  #define DIRECTION_PORT    PORTC
+   #define X_DIRECTION_BIT   5  // Uno Digital Pin 5
+   #define Y_DIRECTION_BIT   6  // Uno Digital Pin 6
+   #define Z_DIRECTION_BIT   7  // Uno Digital Pin 7
+@@ -52,7 +52,7 @@
+   // Define stepper driver enable/disable output pin.
+   #define STEPPERS_DISABLE_DDR    DDRB
+   #define STEPPERS_DISABLE_PORT   PORTB
+-  #define STEPPERS_DISABLE_BIT    0  // Uno Digital Pin 8
++  #define STEPPERS_DISABLE_BIT    10  // not used
+   #define STEPPERS_DISABLE_MASK   (1<<STEPPERS_DISABLE_BIT)
+ 
+   // Define homing/hard limit switch input pins and limit interrupt vectors.
+@@ -60,12 +60,12 @@
+   #define LIMIT_DDR        DDRB
+   #define LIMIT_PIN        PINB
+   #define LIMIT_PORT       PORTB
+-  #define X_LIMIT_BIT      1  // Uno Digital Pin 9
+-  #define Y_LIMIT_BIT      2  // Uno Digital Pin 10
++  #define X_LIMIT_BIT      0  // Uno Digital Pin 8
++  #define Y_LIMIT_BIT      1  // Uno Digital Pin 9
+   #ifdef VARIABLE_SPINDLE // Z Limit pin and spindle enabled swapped to access hardware PWM on Pin 11.
+-    #define Z_LIMIT_BIT	   4 // Uno Digital Pin 12
++    #define Z_LIMIT_BIT	   14  // not used
+   #else
+-    #define Z_LIMIT_BIT    3  // Uno Digital Pin 11
++    #define Z_LIMIT_BIT    13  // not used
+   #endif
+   #if !defined(ENABLE_DUAL_AXIS)
+     #define LIMIT_MASK     ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
+@@ -76,13 +76,13 @@
+ 
+   // Define user-control controls (cycle start, reset, feed hold) input pins.
+   // NOTE: All CONTROLs pins must be on the same port and not on a port with other input pins (limits).
+-  #define CONTROL_DDR       DDRC
+-  #define CONTROL_PIN       PINC
+-  #define CONTROL_PORT      PORTC
+-  #define CONTROL_RESET_BIT         0  // Uno Analog Pin 0
+-  #define CONTROL_FEED_HOLD_BIT     1  // Uno Analog Pin 1
+-  #define CONTROL_CYCLE_START_BIT   2  // Uno Analog Pin 2
+-  #define CONTROL_SAFETY_DOOR_BIT   1  // Uno Analog Pin 1 NOTE: Safety door is shared with feed hold. Enabled by config define.
++  #define CONTROL_DDR       DDRB
++  #define CONTROL_PIN       PINB
++  #define CONTROL_PORT      PORTB
++  #define CONTROL_RESET_BIT         10  // not used
++  #define CONTROL_FEED_HOLD_BIT     11  // not used
++  #define CONTROL_CYCLE_START_BIT   12  // not used
++  #define CONTROL_SAFETY_DOOR_BIT   11  // not used
+   #define CONTROL_INT       PCIE1  // Pin change interrupt enable pin
+   #define CONTROL_INT_vect  PCINT1_vect
+   #define CONTROL_PCMSK     PCMSK1 // Pin change interrupt register
+@@ -90,21 +90,21 @@
+   #define CONTROL_INVERT_MASK   CONTROL_MASK // May be re-defined to only invert certain control pins.
+ 
+   // Define probe switch input pin.
+-  #define PROBE_DDR       DDRC
+-  #define PROBE_PIN       PINC
+-  #define PROBE_PORT      PORTC
+-  #define PROBE_BIT       5  // Uno Analog Pin 5
++  #define PROBE_DDR       DDRB
++  #define PROBE_PIN       PINB
++  #define PROBE_PORT      PORTB
++  #define PROBE_BIT       15  // not used
+   #define PROBE_MASK      (1<<PROBE_BIT)
+ 
+   #if !defined(ENABLE_DUAL_AXIS)
+ 
+     // Define flood and mist coolant enable output pins.
+-    #define COOLANT_FLOOD_DDR   DDRC
+-    #define COOLANT_FLOOD_PORT  PORTC
+-    #define COOLANT_FLOOD_BIT   3  // Uno Analog Pin 3
+-    #define COOLANT_MIST_DDR   DDRC
+-    #define COOLANT_MIST_PORT  PORTC
+-    #define COOLANT_MIST_BIT   4  // Uno Analog Pin 4
++    #define COOLANT_FLOOD_DDR   DDRB
++    #define COOLANT_FLOOD_PORT  PORTB
++    #define COOLANT_FLOOD_BIT   13  // not used
++    #define COOLANT_MIST_DDR   DDRB
++    #define COOLANT_MIST_PORT  PORTB
++    #define COOLANT_MIST_BIT   14  // not used
+ 
+     // Define spindle enable and spindle direction output pins.
+     #define SPINDLE_ENABLE_DDR    DDRB
+@@ -113,17 +113,17 @@
+     #ifdef VARIABLE_SPINDLE
+       #ifdef USE_SPINDLE_DIR_AS_ENABLE_PIN
+         // If enabled, spindle direction pin now used as spindle enable, while PWM remains on D11.
+-        #define SPINDLE_ENABLE_BIT    5  // Uno Digital Pin 13 (NOTE: D13 can't be pulled-high input due to LED.)
++        #define SPINDLE_ENABLE_BIT    15  // not used
+       #else
+-        #define SPINDLE_ENABLE_BIT    3  // Uno Digital Pin 11
++        #define SPINDLE_ENABLE_BIT    13  // not used
+       #endif
+     #else
+-      #define SPINDLE_ENABLE_BIT    4  // Uno Digital Pin 12
++      #define SPINDLE_ENABLE_BIT    14  // not used
+     #endif
+     #ifndef USE_SPINDLE_DIR_AS_ENABLE_PIN
+       #define SPINDLE_DIRECTION_DDR   DDRB
+       #define SPINDLE_DIRECTION_PORT  PORTB
+-      #define SPINDLE_DIRECTION_BIT   5  // Uno Digital Pin 13 (NOTE: D13 can't be pulled-high input due to LED.)
++      #define SPINDLE_DIRECTION_BIT   15  // not used
+     #endif
+ 
+     // Variable spindle configuration below. Do not change unless you know what you are doing.
+@@ -149,7 +149,7 @@
+     // NOTE: On the 328p, these must be the same as the SPINDLE_ENABLE settings.
+     #define SPINDLE_PWM_DDR   DDRB
+     #define SPINDLE_PWM_PORT  PORTB
+-    #define SPINDLE_PWM_BIT   3    // Uno Digital Pin 11
++    #define SPINDLE_PWM_BIT   13    // not used
+   
+   #else
+ 
+diff --git a/grbl/defaults.h b/grbl/defaults.h
+index 2e46130..e4564e1 100644
+--- a/grbl/defaults.h
++++ b/grbl/defaults.h
+@@ -29,18 +29,18 @@
+ 
+ #ifdef DEFAULTS_GENERIC
+   // Grbl generic default settings. Should work across different machines.
+-  #define DEFAULT_X_STEPS_PER_MM 250.0
+-  #define DEFAULT_Y_STEPS_PER_MM 250.0
+-  #define DEFAULT_Z_STEPS_PER_MM 250.0
+-  #define DEFAULT_X_MAX_RATE 500.0 // mm/min
+-  #define DEFAULT_Y_MAX_RATE 500.0 // mm/min
+-  #define DEFAULT_Z_MAX_RATE 500.0 // mm/min
+-  #define DEFAULT_X_ACCELERATION (10.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
+-  #define DEFAULT_Y_ACCELERATION (10.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
+-  #define DEFAULT_Z_ACCELERATION (10.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
+-  #define DEFAULT_X_MAX_TRAVEL 200.0 // mm NOTE: Must be a positive value.
+-  #define DEFAULT_Y_MAX_TRAVEL 200.0 // mm NOTE: Must be a positive value.
+-  #define DEFAULT_Z_MAX_TRAVEL 200.0 // mm NOTE: Must be a positive value.
++  #define DEFAULT_X_STEPS_PER_MM 200.0
++  #define DEFAULT_Y_STEPS_PER_MM 200.0
++  #define DEFAULT_Z_STEPS_PER_MM 200.0
++  #define DEFAULT_X_MAX_RATE 50.0 // mm/min
++  #define DEFAULT_Y_MAX_RATE 50.0 // mm/min
++  #define DEFAULT_Z_MAX_RATE 50.0 // mm/min
++  #define DEFAULT_X_ACCELERATION (1.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
++  #define DEFAULT_Y_ACCELERATION (1.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
++  #define DEFAULT_Z_ACCELERATION (1.0*60*60) // 10*60*60 mm/min^2 = 10 mm/sec^2
++  #define DEFAULT_X_MAX_TRAVEL 2.4 // mm NOTE: Must be a positive value.
++  #define DEFAULT_Y_MAX_TRAVEL 2.4 // mm NOTE: Must be a positive value.
++  #define DEFAULT_Z_MAX_TRAVEL 2.0 // mm NOTE: Must be a positive value.
+   #define DEFAULT_SPINDLE_RPM_MAX 1000.0 // rpm
+   #define DEFAULT_SPINDLE_RPM_MIN 0.0 // rpm
+   #define DEFAULT_STEP_PULSE_MICROSECONDS 10
+@@ -60,9 +60,9 @@
+   #define DEFAULT_HOMING_ENABLE 0  // false
+   #define DEFAULT_HOMING_DIR_MASK 0 // move positive dir
+   #define DEFAULT_HOMING_FEED_RATE 25.0 // mm/min
+-  #define DEFAULT_HOMING_SEEK_RATE 500.0 // mm/min
++  #define DEFAULT_HOMING_SEEK_RATE 50.0 // mm/min
+   #define DEFAULT_HOMING_DEBOUNCE_DELAY 250 // msec (0-65k)
+-  #define DEFAULT_HOMING_PULLOFF 1.0 // mm
++  #define DEFAULT_HOMING_PULLOFF 0.01 // mm
+ #endif
+ 
+ #ifdef DEFAULTS_SHERLINE_5400
+diff --git a/grbl/stepper.c b/grbl/stepper.c
+index 8e0b151..0d16e33 100644
+--- a/grbl/stepper.c
++++ b/grbl/stepper.c
+@@ -21,6 +21,39 @@
+ 
+ #include "grbl.h"
+ 
++// B (pin D8, D9: endstops)
++// C (pin A2..A5: x stepper)
++// D (pin D4..D7: y stepper)
++
++// stop homing if homing switch does not change after HOME_MAX_STEPS steps
++#define HOME_MAX_STEPS 720
++// lower HOME_STEP_DELAY for faster homing, increase HOME_STEP_DELAY for slower homing
++#define HOME_STEP_DELAY 5
++
++#define STEPPER_X_A1 (0x01 << PINC5)
++#define STEPPER_X_A2 (0x01 << PINC4)
++#define STEPPER_X_B1 (0x01 << PINC3)
++#define STEPPER_X_B2 (0x01 << PINC2)
++
++#define STEPPER_Y_A1 (0x01 << PIND4)
++#define STEPPER_Y_A2 (0x01 << PIND5)
++#define STEPPER_Y_B1 (0x01 << PIND6)
++#define STEPPER_Y_B2 (0x01 << PIND7)
++
++#define STEPPER_PORT_X PORTC
++#define STEPPER_PORT_Y PORTD
++
++#define STEPPER_DDR_X DDRC
++#define STEPPER_DDR_Y DDRD
++
++#define ALL_STEPPER_PINS_X (STEPPER_X_A1 | STEPPER_X_A2 | STEPPER_X_B1 | STEPPER_X_B2)
++#define ALL_STEPPER_PINS_Y (STEPPER_Y_A1 | STEPPER_Y_A2 | STEPPER_Y_B1 | STEPPER_Y_B2)
++
++static const int stepper_table_x[8] = { STEPPER_X_A1, STEPPER_X_A1 | STEPPER_X_B1, STEPPER_X_B1, STEPPER_X_B1 | STEPPER_X_A2, STEPPER_X_A2, STEPPER_X_A2 | STEPPER_X_B2, STEPPER_X_B2, STEPPER_X_B2 | STEPPER_X_A1 };
++static const int stepper_table_y[8] = { STEPPER_Y_A1, STEPPER_Y_A1 | STEPPER_Y_B1, STEPPER_Y_B1, STEPPER_Y_B1 | STEPPER_Y_A2, STEPPER_Y_A2, STEPPER_Y_A2 | STEPPER_Y_B2, STEPPER_Y_B2, STEPPER_Y_B2 | STEPPER_Y_A1 };
++
++static unsigned int step_x = 0;
++static unsigned int step_y = 0;
+ 
+ // Some useful constants.
+ #define DT_SEGMENT (1.0/(ACCELERATION_TICKS_PER_SECOND*60.0)) // min/segment
+@@ -218,14 +251,106 @@ static st_prep_t prep;
+   are shown and defined in the above illustration.
+ */
+ 
++// code for stepper connected h-bridge
++
++void stepper_move() {
++  if (st.step_outbits & (1 << X_STEP_BIT)) {
++    if (st.dir_outbits & (1 << X_DIRECTION_BIT))
++      step_x += 1;
++    else
++      step_x += 7; // subtract 1 modulo 8
++    };
++  step_x %= 8;
++
++  if (st.step_outbits & (1 << Y_STEP_BIT)) {
++    if (st.dir_outbits & (1 << Y_DIRECTION_BIT))
++      step_y += 1;
++    else
++      step_y += 7; // subtract 1 modulo 8
++    };
++  step_y %= 8;
++
++  STEPPER_PORT_X = (STEPPER_PORT_X & ~ALL_STEPPER_PINS_X) | stepper_table_x[step_x];
++  STEPPER_PORT_Y = (STEPPER_PORT_Y & ~ALL_STEPPER_PINS_Y) | stepper_table_y[step_y];
++}
++
++// sleep: 0v on stepper pins.
++
++void stepper_sleep() {
++  STEPPER_PORT_X = (STEPPER_PORT_X & ~ALL_STEPPER_PINS_X);
++  STEPPER_PORT_Y = (STEPPER_PORT_Y & ~ALL_STEPPER_PINS_Y);
++}
++
++// wakeup: voltage on stepper pins.
++
++void stepper_wakeup() {
++  STEPPER_PORT_X = (STEPPER_PORT_X & ~ALL_STEPPER_PINS_X) | stepper_table_x[step_x];
++  STEPPER_PORT_Y = (STEPPER_PORT_Y & ~ALL_STEPPER_PINS_Y) | stepper_table_y[step_y];
++}
++
++// homing to center of stage
++// stage does not have limit switches at the end of the working space,
++// but homing switches at the middle of the working space.
++
++void stepper_home() {
++  int maxcnt = HOME_MAX_STEPS;
++  bool homed_x = false;
++  bool homed_y = false;
++  bool decrease_x = true;
++  bool decrease_y = true;
++
++  while (!(homed_x && homed_y)) {
++    if (--maxcnt == 0) return;
++    /* x axis  home */
++    if (!homed_x) {
++      if (decrease_x) {
++        /* decrease x until x homing switch false */
++        if (bit_istrue(LIMIT_PIN, (0x1 << X_LIMIT_BIT))) {
++          step_x = (step_x + 7) % 8; // subtract 1, modulo 8
++        } else {
++          decrease_x = false;
++        }
++      } else {
++        /* increase x until x homing switch true */
++        if (bit_isfalse(LIMIT_PIN, (0x1 << X_LIMIT_BIT))) {
++          step_x = (step_x + 1) % 8;
++        } else {
++          homed_x = true;
++        }
++      }
++    }
++    /* y axis  home */
++    if (!homed_y) {
++      if (decrease_y) {
++        /* decrease y until y homing switch false */
++        if (bit_istrue(LIMIT_PIN, (0x1 << Y_LIMIT_BIT))) {
++          step_y = (step_y + 7) % 8; // subtract 1, modulo 8
++        } else {
++          decrease_y = false;
++        }
++      } else {
++        /* increase y until y homing switch true */
++        if (bit_isfalse(LIMIT_PIN, (0x1 << Y_LIMIT_BIT))) {
++          step_y = (step_y + 1) % 8;
++        } else {
++          homed_y = true;
++        }
++      }
++    }
++    /* move steppers */
++    STEPPER_PORT_X = (STEPPER_PORT_X & ~ALL_STEPPER_PINS_X) | stepper_table_x[step_x];
++    STEPPER_PORT_Y = (STEPPER_PORT_Y & ~ALL_STEPPER_PINS_Y) | stepper_table_y[step_y];
++    delay_ms(HOME_STEP_DELAY);
++  }
++  return;
++}
+ 
+ // Stepper state initialization. Cycle should only start if the st.cycle_start flag is
+ // enabled. Startup init and limits call this function but shouldn't start the cycle.
+ void st_wake_up()
+ {
+   // Enable stepper drivers.
+-  if (bit_istrue(settings.flags,BITFLAG_INVERT_ST_ENABLE)) { STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT); }
+-  else { STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT); }
++  stepper_wakeup();
+ 
+   // Initialize stepper output bits to ensure first ISR call does not step.
+   st.step_outbits = step_port_invert_mask;
+@@ -262,9 +387,8 @@ void st_go_idle()
+     delay_ms(settings.stepper_idle_lock_time);
+     pin_state = true; // Override. Disable steppers.
+   }
+-  if (bit_istrue(settings.flags,BITFLAG_INVERT_ST_ENABLE)) { pin_state = !pin_state; } // Apply pin invert.
+-  if (pin_state) { STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT); }
+-  else { STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT); }
++  if (pin_state) stepper_sleep();
++  else stepper_wakeup();
+ }
+ 
+ 
+@@ -316,16 +440,11 @@ void st_go_idle()
+ // TODO: Replace direct updating of the int32 position counters in the ISR somehow. Perhaps use smaller
+ // int8 variables and update position counters only when a segment completes. This can get complicated
+ // with probing and homing cycles that require true real-time positions.
++
+ ISR(TIMER1_COMPA_vect)
+ {
+   if (busy) { return; } // The busy-flag is used to avoid reentering this interrupt
+ 
+-  // Set the direction pins a couple of nanoseconds before we step the steppers
+-  DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | (st.dir_outbits & DIRECTION_MASK);
+-  #ifdef ENABLE_DUAL_AXIS
+-    DIRECTION_PORT_DUAL = (DIRECTION_PORT_DUAL & ~DIRECTION_MASK_DUAL) | (st.dir_outbits_dual & DIRECTION_MASK_DUAL);
+-  #endif
+-
+   // Then pulse the stepping pins
+   #ifdef STEP_PULSE_DELAY
+     st.step_bits = (STEP_PORT & ~STEP_MASK) | st.step_outbits; // Store out_bits to prevent overwriting.
+@@ -333,10 +452,7 @@ ISR(TIMER1_COMPA_vect)
+       st.step_bits_dual = (STEP_PORT_DUAL & ~STEP_MASK_DUAL) | st.step_outbits_dual;
+     #endif
+   #else  // Normal operation
+-    STEP_PORT = (STEP_PORT & ~STEP_MASK) | st.step_outbits;
+-    #ifdef ENABLE_DUAL_AXIS
+-      STEP_PORT_DUAL = (STEP_PORT_DUAL & ~STEP_MASK_DUAL) | st.step_outbits_dual;
+-    #endif
++    stepper_move();
+   #endif
+ 
+   // Enable step pulse reset timer so that The Stepper Port Reset Interrupt can reset the signal after
+@@ -488,11 +604,6 @@ ISR(TIMER1_COMPA_vect)
+ // completing one step cycle.
+ ISR(TIMER0_OVF_vect)
+ {
+-  // Reset stepping pins (leave the direction pins)
+-  STEP_PORT = (STEP_PORT & ~STEP_MASK) | (step_port_invert_mask & STEP_MASK);
+-  #ifdef ENABLE_DUAL_AXIS
+-    STEP_PORT_DUAL = (STEP_PORT_DUAL & ~STEP_MASK_DUAL) | (step_port_invert_mask_dual & STEP_MASK_DUAL);
+-  #endif
+   TCCR0B = 0; // Disable Timer0 to prevent re-entering this interrupt when it's not needed.
+ }
+ #ifdef STEP_PULSE_DELAY
+@@ -503,10 +614,7 @@ ISR(TIMER0_OVF_vect)
+   // st_wake_up() routine.
+   ISR(TIMER0_COMPA_vect)
+   {
+-    STEP_PORT = st.step_bits; // Begin step pulse.
+-    #ifdef ENABLE_DUAL_AXIS
+-      STEP_PORT_DUAL = st.step_bits_dual;
+-    #endif
++    stepper_move();
+   }
+ #endif
+ 
+@@ -549,16 +657,6 @@ void st_reset()
+ 
+   st_generate_step_dir_invert_masks();
+   st.dir_outbits = dir_port_invert_mask; // Initialize direction bits to default.
+-
+-  // Initialize step and direction port pins.
+-  STEP_PORT = (STEP_PORT & ~STEP_MASK) | step_port_invert_mask;
+-  DIRECTION_PORT = (DIRECTION_PORT & ~DIRECTION_MASK) | dir_port_invert_mask;
+-  
+-  #ifdef ENABLE_DUAL_AXIS
+-    st.dir_outbits_dual = dir_port_invert_mask_dual;
+-    STEP_PORT_DUAL = (STEP_PORT_DUAL & ~STEP_MASK_DUAL) | step_port_invert_mask_dual;
+-    DIRECTION_PORT_DUAL = (DIRECTION_PORT_DUAL & ~DIRECTION_MASK_DUAL) | dir_port_invert_mask_dual;
+-  #endif
+ }
+ 
+ 
+@@ -566,14 +664,13 @@ void st_reset()
+ void stepper_init()
+ {
+   // Configure step and direction interface pins
+-  STEP_DDR |= STEP_MASK;
+-  STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
+-  DIRECTION_DDR |= DIRECTION_MASK;
+-  
+-  #ifdef ENABLE_DUAL_AXIS
+-    STEP_DDR_DUAL |= STEP_MASK_DUAL;
+-    DIRECTION_DDR_DUAL |= DIRECTION_MASK_DUAL;
+-  #endif
++  STEPPER_DDR_X |= ALL_STEPPER_PINS_X;
++  STEPPER_DDR_Y |= ALL_STEPPER_PINS_Y;
++  stepper_wakeup();
++
++  LIMIT_DDR &= ~(LIMIT_MASK); // set as input pins
++  LIMIT_PORT &= ~(LIMIT_MASK); // no pull-up
++  stepper_home();
+ 
+   // Configure Timer 1: Stepper Driver Interrupt
+   TCCR1B &= ~(1<<WGM13); // waveform generation = 0100 = CTC
