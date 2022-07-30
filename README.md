@@ -39,6 +39,15 @@ The [connector board](easyeda/Schematic_xy%20stage%20breakout_2022-04-08.pdf) br
 
 The [board project is at easyeda](https://oshwlab.com/koendv/xy-stage-breakout); and I've put up [gerbers at github](easyeda/).
 
+To manufacture a pcb board
+
+- go to the [board project](https://oshwlab.com/koendv/xy-stage-breakout)
+- click on "Editor open"
+- choose the menu "Fabrication"
+- choose "One click order PCB/SMT"
+
+The Hirose flat cable connector can be bought from [aliexpress](https://www.google.com/search?q=%22FH26W-15S-0.3SHW%22+site%3A.aliexpress.com)
+
 If you don't like soldering SMD components, you can also solder small [patch wires](https://www.adafruit.com/product/1446) directly to the stage.
 
 ## arduino nano controller
