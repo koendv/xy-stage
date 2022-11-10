@@ -35,7 +35,7 @@ The [adapter plates](openscad/) are designed in openscad and 3D printed. The siz
 
 ## connector board
 
-The [connector board](easyeda/Schematic_xy%20stage%20breakout_2022-04-08.pdf) breaks out the flat cable to the arduino pins. There are current-limiting resistors for the optocoupler led, and pull-down resistors for the optocoupler output. The stepper motors are so small you can connect them directly to the microcontroller pins.
+The [connector board](easyeda/Schematic_xy%20stage%20breakout_2022-04-08.pdf) breaks out the flat cable to the arduino pins. The xy stage contains two optical endstops, one for x and one for y. This is the [schematic](pictures/xystage_endstop.pdf) of one such optical endstop. There are current-limiting resistors for the optocoupler led, and pull-down resistors for the optocoupler output.  The stepper motors are so small you can connect them directly to the microcontroller pins.
 
 The [board project is at easyeda](https://oshwlab.com/koendv/xy-stage-breakout); and I've put up [gerbers at github](easyeda/).
 
@@ -105,7 +105,7 @@ Example: Set the feed rate. Starting at the origin, first move the stage 1 mm in
 
 See the [grbl/ directory](grbl/) for grbl firmware for the arduino nano.
 
-Using G-code is interesting if you wish to automate a microscope. 
+Using G-code is interesting if you wish to automate a microscope.
 
 ## micro-manager
 
