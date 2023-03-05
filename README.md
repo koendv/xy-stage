@@ -48,6 +48,9 @@ To manufacture a pcb board
 
 The Hirose flat cable connector can be bought from [aliexpress](https://www.google.com/search?q=%22FH26W-15S-0.3SHW%22+site%3A.aliexpress.com)
 
+## Soldering wires
+[![Creating a RPI-assisted microscope](pictures/wires.jpg  "Soldering wires")](https://forums.raspberrypi.com/viewtopic.php?t=210605&sid=cc13e9c79fb1d1ca8f52a80ca8923534&start=75#p1678566)
+
 If you don't like soldering SMD components, you can also solder small [patch wires](https://www.adafruit.com/product/1446) directly to the stage.
 
 ## arduino nano controller
