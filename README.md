@@ -135,6 +135,10 @@ Using G-code is interesting if you wish to automate a microscope.
 
 [micro-manager](https://micro-manager.org/) is open source software for control and automation of microscope hardware. See the [micro-manager/ directory](micro-manager/) for using the xy-stage with micro-manager.
 
+## closing thoughts
+
+Looking back, the adapter plates could easily be improved. The adapter plates were printed in yellow, on a Prusa FDM printer. If I had to do this again, I would 3D print the adapter plates in a matte dark grey or black, not yellow. Using SLS or MJF, not FDM, to be able to design a carriage that weighs less yet is more rigid. And probably ordered at [jlcpcb](https://3d.jlcpcb.com/), the same place I had the printed circuits made.
+
 ## bill of Materials
 
 The list of materials used to build this project:
