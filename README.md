@@ -35,23 +35,42 @@ The [adapter plates](openscad/) are designed in openscad and 3D printed. The siz
 
 ## connector board
 
+![pcb](pictures/pcb_assembly.jpg  "connector board")
+
 The [connector board](easyeda/Schematic_xy%20stage%20breakout_2022-04-08.pdf) breaks out the flat cable to the arduino pins. The xy stage contains two optical endstops, one for x and one for y. This is the [schematic](pictures/xystage_endstop.pdf) of one such optical endstop. There are current-limiting resistors for the optocoupler led, and pull-down resistors for the optocoupler output.  The stepper motors are so small you can connect them directly to the microcontroller pins.
 
 The [board project is at easyeda](https://oshwlab.com/koendv/xy-stage-breakout); and I've put up [gerbers at github](easyeda/).
 
-To manufacture a pcb board
+The easiest way to obtain a pcb board is to have it assembled for you. All files needed for pcb assembly are in the [easyeda](easyeda/) directory:
 
-- go to the [board project](https://oshwlab.com/koendv/xy-stage-breakout)
-- click on "Editor open"
-- choose the menu "Fabrication"
-- choose "One click order PCB/SMT"
+- Gerber files
+- Bill of Materials ("BOM")
+- Pick and Place file ("CPL")
 
-The Hirose flat cable connector can be bought from [aliexpress](https://www.google.com/search?q=%22FH26W-15S-0.3SHW%22+site%3A.aliexpress.com)
+The Gerber files order the printed circuit board. The Bill of Materials orders the components. The Pick and Place file orders the components to be soldered to the board. 
 
-## Soldering wires
-[![Creating a RPI-assisted microscope](pictures/wires.jpg  "Soldering wires")](https://forums.raspberrypi.com/viewtopic.php?t=210605&sid=cc13e9c79fb1d1ca8f52a80ca8923534&start=75#p1678566)
+This is a walk-through of the ordering process:
 
-If you don't like soldering SMD components, you can also solder small [patch wires](https://www.adafruit.com/product/1446) directly to the stage.
+- Log in to [jlpcb.com](https://jlcpcb.com/). 
+- Click "Order now"
+- Click "Add gerber file"
+- Select file "Gerber_PCB_xy stage breakout_2023-05-13.zip"
+- Select "PCB Assemly"
+- Choose "Assemble top side"
+- Click "Confirm"
+- Click "Next"
+- Click "Add BOM File"
+- Select file "BOM_PCB_xy stage breakout_2023-05-13.csv"
+- Click "Add CPL File"
+- Select file "PickAndPlace_PCB_xy stage breakout_2023-05-13.csv"
+- Click "Process BOM and CPL"
+- Next to the flat cable connector it says "No part selected". Click "Search". After the part has been found, click "Select".
+- Click "Next"
+- In product description, choose "Research/Education/DIY/Entertainment", "DIY"
+- Click "Save to cart"
+- Check out order
+
+Make sure all parts are available before ordering assembly.
 
 ## arduino nano controller
 
